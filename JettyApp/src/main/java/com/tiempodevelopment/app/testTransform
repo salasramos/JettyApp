@@ -1,0 +1,139 @@
+package com.tiempodevelopment.controller;
+
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.hibernate.transform.ResultTransformer;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.tiempodevelopment.TestUtil;
+import com.tiempodevelopment.config.TestContext;
+import com.tiempodevelopment.config.WebAppContext;
+import com.tiempodevelopment.dao.AbstractDaoFactory;
+import com.tiempodevelopment.dao.daos.CategoryDAO;
+import com.tiempodevelopment.dao.daos.SubCategoryDAO;
+import com.tiempodevelopment.entities.Category;
+import com.tiempodevelopment.entities.DBEntity;
+import com.tiempodevelopment.entities.SubCategory;
+import com.tiempodevelopment.util.MyEntry;
+
+/**
+ * @author Rodrigo Salas
+ *
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(classes = {TestContext.class, WebAppContext.class})
+@WebAppConfiguration
+public class CategoryControllerTest {
+	
+	private MockMvc mockMvc;
+	
+	@Autowired
+	private AbstractDaoFactory daoFactoryMock ;
+
+	@Autowired 
+	private CategoryDAO categoryDAOMock;
+	
+	@Autowired 
+	private SubCategoryDAO subCategoryDAOMock;
+	
+	@Autowired
+	private WebApplicationContext webApplicationContext;
+	
+	@Before
+	public void setUp() {
+        Mockito.reset(daoFactoryMock);  
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+	}
+	
+	
+	@Test
+	public void findAllCategoriesAndSubCategories_ShouldReturnFoundSubCategories() throws Exception {	
+		SubCategory subCategory1 = new SubCategory();
+		subCategory1.setId(1);
+		subCategory1.setName("computadoras");
+		
+		SubCategory subCategory2 = new SubCategory();
+		subCategory2.setId(2);
+		subCategory2.setName("televisores");
+		
+		List<DBEntity> list = Arrays.asList((DBEntity)subCategory1, (DBEntity)subCategory2);
+		
+		when(daoFactoryMock.getSubCategoryDAO()).thenReturn(subCategoryDAOMock);
+		when(daoFactoryMock.getSubCategoryDAO().getAllSubCategories()).thenReturn(list);
+		mockMvc.perform(get("/subcategories"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(TestUtil.APPLICATION_JSON_UTF8))
+        .andExpect(jsonPath("$", hasSize(2)))
+        .andExpect(jsonPath("$[0].id", is(1)))
+        .andExpect(jsonPath("$[0].name", is("computadoras")))
+        .andExpect(jsonPath("$[1].id", is(2)))
+        .andExpect(jsonPath("$[1].name", is("televisores"))).andDo(print());
+		
+		verify(daoFactoryMock.getSubCategoryDAO(), times(1)).getAllSubCategories();
+        verifyNoMoreInteractions(daoFactoryMock.getSubCategoryDAO());
+	}
+	
+	@Test
+	public void findAllCategories_ShouldReturnFoundCategories() throws Exception {	
+		Category category1 = new Category();
+		category1.setId(1);
+		category1.setName("Tecnologia");
+		
+		Category category2 = new Category();
+		category2.setId(2);
+		category2.setName("Linea Blanca");
+			
+		Map<String, String> map1 = ImmutableMap.of("name", category1.getName(), "id", String.valueOf(category1.getId()));
+		Map<String, String> map2 = ImmutableMap.of("name", category2.getName(), "id", String.valueOf(category2.getId()));
+
+		List<Map<String,String>> list = new ArrayList<>();
+		list.add(map1);
+		list.add(map2);
+		
+		System.out.println(list);
+		
+		when(daoFactoryMock.getCategoryDAO()).thenReturn(categoryDAOMock);
+		when(daoFactoryMock.getCategoryDAO().categoryList()).thenReturn(list);
+		mockMvc.perform(get("/categories"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(TestUtil.APPLICATION_JSON_UTF8))
+        .andExpect(jsonPath("$", hasSize(2)))
+	    .andExpect(jsonPath("$[0].id", is("1")))
+	    .andExpect(jsonPath("$[0].name", is("Tecnologia")))
+	    .andExpect(jsonPath("$[1].id", is("2")))
+	    .andExpect(jsonPath("$[1].name", is("Linea Blanca"))).andDo(print());        		
+		
+		verify(daoFactoryMock.getCategoryDAO(), times(1)).categoryList();
+        verifyNoMoreInteractions(daoFactoryMock.getCategoryDAO());
+	}
+
+}
